@@ -1,0 +1,12 @@
+{
+ "version": "2026.11.19",
+ "neu": "Excel-Export, automatische Updates",
+ "dateien": {
+  "schwabach": "Kassenbuch_WebApp_Schwabach.html",
+  "nuernberg": "Kassenbuch_WebApp_Nuernberg.html"
+ },
+ "sha256": {
+  "schwabach": "8772fbddfc338057e1fd00213c48826ef9d186d851e280d86c22caf17e515efa",
+  "nuernberg": "db4b94020820bc724faf9a18a6ba2c802f6f5f7354b829799da265ab5548c90a"
+ }
+}

@@ -1,0 +1,27 @@
+Update-Paket Kassenbuch Drucker Tankwart
+========================================
+
+Inhalt
+  update.json                       – Versionsnummer, Hinweis „Was ist neu“, Prüfsummen
+  Kassenbuch_WebApp_Schwabach.html  – Programm Schwabach
+  Kassenbuch_WebApp_Nuernberg.html  – Programm Nürnberg
+
+So funktioniert es
+  1. Diese drei Dateien in EINEN Ordner im Internet hochladen (https), z. B. GitHub Pages:
+     https://<name>.github.io/kassenbuch/
+  2. In der Web-App: „Datenbank & Sicherung“ → „Updates“ → diese Adresse eintragen → „Speichern“.
+     (Das muss pro Rechner/Browser einmal gemacht werden.)
+  3. Die App prüft beim Start (höchstens alle 6 Stunden). Gibt es eine neuere Version,
+     erscheint oben ein Hinweis mit „Jetzt aktualisieren“.
+  4. Beim ersten Update fragt Chrome/Edge einmal nach der Kassenbuch-Datei, die ersetzt werden soll –
+     danach laufen Updates ohne Abfrage. Die vorige Version wird vorher gesichert
+     („Vorige Version wiederherstellen“ im selben Bereich).
+     Andere Browser laden die neue Datei in den Download-Ordner; dann die alte Datei damit ersetzen.
+
+Wichtig
+  - Die Daten liegen in der Datenbank (Browser bzw. Kassenbuch_*.sqlite im Ordner), nicht in der HTML-Datei.
+    Ein Update ändert nur das Programm.
+  - Für jede neue Version wird dieses Paket neu erzeugt (neue Versionsnummer + Prüfsummen) und
+    alle drei Dateien werden überschrieben.
+  - Der Server muss Zugriffe von lokalen Dateien erlauben (CORS „Access-Control-Allow-Origin: *“) –
+    GitHub Pages macht das von selbst.
