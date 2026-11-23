@@ -1,12 +1,12 @@
 {
- "version": "2026.11.24",
- "neu": "Update-Ablauf repariert, Prüfung bei jedem Öffnen, Ordner-Speicherung setzt automatisch fort",
+ "version": "2026.11.25",
+ "neu": "Knöpfe oben im Monatsblatt, Kontrolle neben Kassenstand Ende",
  "dateien": {
   "schwabach": "Kassenbuch_WebApp_Schwabach.html",
   "nuernberg": "Kassenbuch_WebApp_Nuernberg.html"
  },
  "sha256": {
-  "schwabach": "fdb23bf872819209e9fef8e1b399ffce9a326e22da841f0dbf071d0e7aff32d5",
-  "nuernberg": "4e2ca23cff1c1f7c8d1e0aaeb370230201deb8ac3aceb716bcd2f550939884d4"
+  "schwabach": "31de74f5990439432a0ea81d569b77f9cfb217396818e5cc947244271712dbfb",
+  "nuernberg": "8828cd32f28986d7521a3ae91573a3606c7ae67cbfa412c6f7f961c4f94053a1"
  }
 }
