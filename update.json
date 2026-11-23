@@ -1,12 +1,12 @@
 {
- "version": "2026.11.23",
- "neu": "Test-Update: Versionsnummer wird oben im Kopf angezeigt",
+ "version": "2026.11.24",
+ "neu": "Update-Ablauf repariert, Prüfung bei jedem Öffnen, Ordner-Speicherung setzt automatisch fort",
  "dateien": {
   "schwabach": "Kassenbuch_WebApp_Schwabach.html",
   "nuernberg": "Kassenbuch_WebApp_Nuernberg.html"
  },
  "sha256": {
-  "schwabach": "1f1fca1319e1fd0b76466ba0e0d9dccc785905fa43f5b87af6a1cd37c40b639e",
-  "nuernberg": "51888129c8331e5c84524e3ffcc43909721ccbb295d55bb14858663af7d77daa"
+  "schwabach": "fdb23bf872819209e9fef8e1b399ffce9a326e22da841f0dbf071d0e7aff32d5",
+  "nuernberg": "4e2ca23cff1c1f7c8d1e0aaeb370230201deb8ac3aceb716bcd2f550939884d4"
  }
 }

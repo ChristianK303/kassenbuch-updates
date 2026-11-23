@@ -72,6 +72,8 @@ body{font-family:Montserrat,"Segoe UI",Calibri,Arial,sans-serif;font-size:13px;c
 #mapov .mbtn{text-align:right;margin-top:14px}
 #updBar{position:sticky;top:0;z-index:70;background:#fff7e6;border-bottom:2px solid #d08a1e;color:#6f1240;padding:8px 22px;font-size:13px}
 #updBar .btn{margin-left:6px;padding:5px 12px}
+#fsBar{position:sticky;top:0;z-index:69;background:#f6e8ef;border-bottom:2px solid #b0507c;color:#6f1240;padding:8px 22px;font-size:13px}
+#fsBar .btn{margin-left:6px;padding:5px 12px}
 #mapov .xsec{border:1px solid #eadde3;border-radius:10px;padding:10px 14px;margin:0 0 10px;background:#fbf4f7;color:#6f1240;font-size:13px}
 #mapov .xsec label{display:block;margin:5px 0;cursor:pointer}
 #mapov .xsec select{font:inherit;padding:4px 6px;border:1px solid #d9c3cf;border-radius:6px;color:#6f1240}
@@ -1390,7 +1392,7 @@ function fsInit(){
   idbGet('kv','dir',function(h){
     if(!h){updStatus();return;}
     FS.dir=h;
-    h.queryPermission({mode:'readwrite'}).then(function(p){FS.perm=p;updStatus();if(p==='granted')fsSyncFromFolder();},function(){FS.perm='prompt';updStatus();});
+    h.queryPermission({mode:'readwrite'}).then(function(p){FS.perm=p;updStatus();if(p==='granted')fsSyncFromFolder();else armAutoResume();},function(){FS.perm='prompt';updStatus();armAutoResume();});
   });
 }
 // beim Start / Fortsetzen: liegt im Ordner ein neuerer Stand (z. B. von einem anderen Rechner)? Dann übernehmen.
@@ -1418,7 +1420,33 @@ function fsPick(){
 }
 function fsResume(){
   if(!FS.dir)return;
-  FS.dir.requestPermission({mode:'readwrite'}).then(function(p){FS.perm=p;updStatus();if(p==='granted')fsSyncFromFolder();});
+  FS.dir.requestPermission({mode:'readwrite'}).then(function(p){
+    FS.perm=p;updStatus();
+    if(p==='granted'){fsHint(false);fsSyncFromFolder();toast('Speichern im Ordner „'+FS.dir.name+'“ läuft wieder.');}
+    else fsHint(true,true);
+  },function(){fsHint(true,true);});
+}
+// Ordner-Speicherung automatisch fortsetzen: Chrome verlangt dafür eine Bedienung – der erste Klick oder
+// Tastendruck irgendwo in der App genügt (bei „Bei jedem Besuch erlauben“ entfällt auch das künftig).
+function armAutoResume(){
+  if(!FS.dir||FS.perm==='granted'||FS.armed)return;
+  FS.armed=true;fsHint(true,false);
+  var h=function(ev){
+    document.removeEventListener('pointerdown',h,true);document.removeEventListener('keydown',h,true);
+    FS.armed=false;
+    var t=ev&&ev.target;if(t&&t.id==='fsGo')return;   // der Knopf im Hinweis ruft selbst fsResume auf
+    if(FS.dir&&FS.perm!=='granted')fsResume();
+  };
+  document.addEventListener('pointerdown',h,true);document.addEventListener('keydown',h,true);
+}
+function fsHint(show,failed){
+  var b=$('fsBar');
+  if(!show){if(b)b.parentNode.removeChild(b);return;}
+  if(!b){b=document.createElement('div');b.id='fsBar';document.body.insertBefore(b,document.body.firstChild);}
+  b.innerHTML=failed
+    ?'Speichern im Ordner „<b>'+esc(FS.dir.name)+'</b>“ ist pausiert – der Browser hat die Erlaubnis nicht bekommen. <button class="btn green" id="fsGo">Erneut erlauben</button>'
+    :'Speichern im Ordner „<b>'+esc(FS.dir.name)+'</b>“ wird fortgesetzt, sobald du irgendwo klickst. Tipp: im Browser-Fenster „<b>Bei jedem Besuch erlauben</b>“ wählen, dann entfällt das künftig.';
+  if($('fsGo'))$('fsGo').onclick=fsResume;
 }
 function fsForget(){if(!confirm('Speichern in den Ordner „'+FS.dir.name+'“ beenden?\n(Die Dateien im Ordner bleiben erhalten.)'))return;FS.dir=null;FS.perm='none';idbDel('kv','dir');updStatus();}
 function writeFile(dir,name,bytes){
@@ -1452,7 +1480,7 @@ function writeNow(manual){
     if(manual)toast('Gespeichert: '+SHOP.datei+'.sqlite + Tagessicherung in „'+FS.dir.name+'“.');
   },function(e){
     FS.busy=false;
-    if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError'))FS.perm='prompt';
+    if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError')){FS.perm='prompt';armAutoResume();}
     FS.err='Speichern im Ordner fehlgeschlagen: '+(e&&e.message?e.message:e);updStatus();
   });
 }
@@ -1693,10 +1721,10 @@ function doExport(o){
 // Unter der Update-Adresse liegt eine Datei update.json, z. B.:
 //   {"version":"2026.12.01","neu":"Was sich geändert hat","dateien":{"schwabach":"Kassenbuch_WebApp_Schwabach.html","nuernberg":"Kassenbuch_WebApp_Nuernberg.html"},
 //    "sha256":{"schwabach":"…","nuernberg":"…"}}
-// Die App prüft beim Start (höchstens alle 6 Stunden) und zeigt einen Hinweis. Beim Aktualisieren wird die Kassenbuch-Datei
+// Die App prüft bei jedem Öffnen und zeigt einen Hinweis. Beim Aktualisieren wird die Kassenbuch-Datei
 // selbst ersetzt (Chrome/Edge: einmal die Datei auswählen, danach automatisch); die alte Version wird vorher gesichert.
 // Die Daten bleiben unberührt – sie liegen in der Datenbank, nicht in der HTML-Datei.
-var APP_VERSION='2026.11.23';
+var APP_VERSION='2026.11.24';
 var UPDATE_URL_STANDARD='https://christiank303.github.io/kassenbuch-updates/';          // feste Standard-Adresse (kann im Bedienfeld überschrieben werden)
 var UPD={m:null,base:'',err:'',checked:0,busy:false};
 function updUrl(){var u='';try{u=localStorage.getItem('kassenbuch.update.url')||'';}catch(e){}return u||UPDATE_URL_STANDARD;}
@@ -1730,16 +1758,14 @@ function checkUpdate(manual){
     updPanelRefresh();
   });
 }
-function autoCheckUpdate(){
-  var last=0;try{last=+localStorage.getItem('kassenbuch.update.checked')||0;}catch(e){}
-  if(new Date().getTime()-last>6*3600*1000)checkUpdate(false);
-  else if(UPD.m&&vcmp(UPD.m.version,APP_VERSION)>0)showUpdBanner(UPD.m);
-}
+function autoCheckUpdate(){checkUpdate(false);}   // bei jedem Öffnen sofort prüfen (und danach stündlich)
 function showUpdBanner(m){
   var b=$('updBar');
   if(!b){b=document.createElement('div');b.id='updBar';document.body.insertBefore(b,document.body.firstChild);}
+  var first=window.showSaveFilePicker&&!UPD.handle;
   b.innerHTML='<b>Neue Version '+esc(m.version)+' verfügbar</b> (installiert: '+esc(APP_VERSION)+')'+(m.neu?' – '+esc(m.neu):'')+
-    ' <button class="btn green" id="updGo">Jetzt aktualisieren</button> <button class="btn alt" id="updLater">Später</button>';
+    ' <button class="btn green" id="updGo">Jetzt aktualisieren</button> <button class="btn alt" id="updLater">Später</button>'+
+    (first?'<br><span style="font-size:12px">Beim ersten Mal öffnet sich ein Fenster: dort die gerade geöffnete Datei „<b>'+esc(currentFileName())+'</b>“ auswählen und „Ersetzen“ bestätigen.</span>':'');
   $('updGo').onclick=function(){doUpdate(m);};
   $('updLater').onclick=function(){b.parentNode.removeChild(b);};
 }
@@ -1748,64 +1774,74 @@ function sha256hex(buf){
   return crypto.subtle.digest('SHA-256',buf).then(function(h){var a=new Uint8Array(h),s='';for(var i=0;i<a.length;i++)s+=(a[i]<16?'0':'')+a[i].toString(16);return s;});
 }
 function currentFileName(){try{return decodeURIComponent(location.pathname.split('/').pop())||'Kassenbuch.html';}catch(e){return 'Kassenbuch.html';}}
+// Gespeicherten Datei-Zugriff schon beim Start bereithalten – Chrome erlaubt Auswahlfenster und Erlaubnis-Abfrage
+// nur unmittelbar nach einem Klick, deshalb muss das ohne Wartezeit passieren.
+idbGet('kv','appfile',function(h){if(h)UPD.handle=h;});
+// Zugriff auf die Programmdatei holen – MUSS direkt im Klick aufgerufen werden (vor jedem Laden/Warten)
+function pickAppFile(){
+  if(!window.showSaveFilePicker)return Promise.resolve(null);
+  var name=currentFileName();
+  if(UPD.handle){
+    return UPD.handle.requestPermission({mode:'readwrite'}).then(function(p){
+      if(p!=='granted')throw new Error('Keine Erlaubnis, die Kassenbuch-Datei zu ersetzen.');
+      return UPD.handle;
+    });
+  }
+  return window.showSaveFilePicker({suggestedName:name,id:'kassenbuch-app-'+SHOP.id,types:[{description:'Kassenbuch (HTML)',accept:{'text/html':['.html','.htm']}}]}).then(function(h){
+    if(h.name!==name&&!confirm('Die gewählte Datei heißt „'+h.name+'“, geöffnet ist „'+name+'“.\nTrotzdem diese Datei ersetzen?'))throw new Error('Abgebrochen – es wurde nichts geändert.');
+    return h;
+  },function(e){
+    if(e&&e.name==='AbortError')throw new Error('Keine Datei ausgewählt – Update abgebrochen.');
+    throw new Error('Das Auswahlfenster konnte nicht geöffnet werden ('+(e&&e.message?e.message:e)+').');
+  });
+}
 function doUpdate(m){
   if(UPD.busy)return;
-  var rel=m.dateien[SHOP.id],url=/^https?:\/\//i.test(rel)?rel:UPD.base+rel,text=null;
-  UPD.busy=true;toast('Neue Version wird geladen …');
-  fetch(url+(url.indexOf('?')<0?'?':'&')+'t='+new Date().getTime(),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}).then(function(buf){
-    return sha256hex(buf).then(function(h){
+  UPD.busy=true;
+  var handle=null,rel=m.dateien[SHOP.id],url=/^https?:\/\//i.test(rel)?rel:UPD.base+rel;
+  pickAppFile().then(function(h){
+    handle=h;toast('Neue Version wird geladen …');
+    return fetch(url+(url.indexOf('?')<0?'?':'&')+'t='+new Date().getTime(),{cache:'no-store'});
+  }).then(function(r){if(!r.ok)throw new Error('Download fehlgeschlagen (HTTP '+r.status+').');return r.arrayBuffer();}).then(function(buf){
+    return sha256hex(buf).then(function(hx){
       var want=m.sha256&&m.sha256[SHOP.id];
-      if(want&&h&&want.toLowerCase()!==h)throw new Error('Die Prüfsumme der heruntergeladenen Datei stimmt nicht – Update abgebrochen.');
-      text=new TextDecoder('utf-8').decode(buf);
+      if(want&&hx&&want.toLowerCase()!==hx)throw new Error('Die Prüfsumme der heruntergeladenen Datei stimmt nicht – Update abgebrochen.');
+      var text=new TextDecoder('utf-8').decode(buf);
       var sm=/var SHOP=\{[^}]*\}/.exec(text);
       if(!sm||!new RegExp('["\']?id["\']?\\s*:\\s*["\']'+SHOP.id+'["\']').test(sm[0]))throw new Error('Die heruntergeladene Datei ist nicht das Kassenbuch „'+SHOP.ort+'“ – Update abgebrochen.');
       if(text.indexOf("APP_VERSION='"+m.version+"'")<0)throw new Error('Die heruntergeladene Datei hat nicht die angekündigte Version '+m.version+'.');
-      return installUpdate(text,m);
+      return installUpdate(handle,text,m);
     });
   }).then(function(){UPD.busy=false;},function(e){UPD.busy=false;alert('Update nicht möglich:\n'+(e&&e.message?e.message:e));});
 }
-function installUpdate(text,m){
+function installUpdate(handle,text,m){
   flushNow();snapshot();
   var name=currentFileName();
-  if(!window.showSaveFilePicker){
+  if(!handle){
     saveFile(name,text,'text/html');
     alert('Die neue Version '+m.version+' wurde heruntergeladen („'+name+'“, Download-Ordner).\n\nBitte die alte Kassenbuch-Datei durch diese ersetzen und dann neu öffnen. Deine Daten bleiben erhalten.');
     return Promise.resolve();
   }
-  return new Promise(function(res,rej){
-    idbGet('kv','appfile',function(h){
-      function write(handle){
-        handle.requestPermission({mode:'readwrite'}).then(function(p){
-          if(p!=='granted')throw new Error('Keine Erlaubnis, die Kassenbuch-Datei zu ersetzen.');
-          return handle.getFile().then(function(f){return f.text();}).then(function(old){
-            if(old&&old.indexOf('var SHOP=')>-1){var vm=/APP_VERSION='([^']*)'/.exec(old);idbPut('kv','appbackup',{name:handle.name,version:vm?vm[1]:'?',text:old,t:new Date().getTime()});}
-          },function(){}).then(function(){return handle.createWritable();}).then(function(w){return w.write(text).then(function(){return w.close();});});
-        }).then(function(){
-          idbPut('kv','appfile',handle);
-          alert('Update auf Version '+m.version+' installiert.\nDas Kassenbuch wird jetzt neu geladen.');
-          res();setTimeout(function(){location.reload();},200);
-        },rej);
-      }
-      if(h){write(h);return;}
-      alert('Einmalig: Im nächsten Fenster bitte die Kassenbuch-Datei auswählen, die gerade geöffnet ist („'+name+'“), und „Speichern“/„Ersetzen“ bestätigen.\n\nDanach laufen Updates ohne diese Abfrage.');
-      window.showSaveFilePicker({suggestedName:name,id:'kassenbuch-app-'+SHOP.id,types:[{description:'Kassenbuch (HTML)',accept:{'text/html':['.html','.htm']}}]}).then(function(handle){
-        if(handle.name!==name&&!confirm('Die gewählte Datei heißt „'+handle.name+'“, geöffnet ist „'+name+'“.\nTrotzdem diese Datei ersetzen?')){rej(new Error('abgebrochen'));return;}
-        write(handle);
-      },function(){rej(new Error('Keine Datei ausgewählt – Update abgebrochen.'));});
-    });
+  return handle.getFile().then(function(f){return f.text();}).then(function(old){
+    if(old&&old.indexOf('var SHOP=')>-1){var vm=/APP_VERSION='([^']*)'/.exec(old);idbPut('kv','appbackup',{name:handle.name,version:vm?vm[1]:'?',text:old,t:new Date().getTime()});}
+  },function(){}).then(function(){return handle.createWritable();}).then(function(w){return w.write(text).then(function(){return w.close();});}).then(function(){
+    UPD.handle=handle;idbPut('kv','appfile',handle);
+    alert('Update auf Version '+m.version+' installiert.\nDas Kassenbuch wird jetzt neu geladen.');
+    setTimeout(function(){location.reload();},200);
   });
 }
 function restorePrevVersion(){
-  idbGet('kv','appbackup',function(b){
-    if(!b){alert('Es ist keine vorige Version gespeichert.');return;}
-    if(!confirm('Vorige Version '+b.version+' wiederherstellen?\nDie Kassenbuch-Datei wird ersetzt und neu geladen. Deine Daten bleiben erhalten.'))return;
-    idbGet('kv','appfile',function(h){
-      if(!h||!window.showSaveFilePicker){saveFile(b.name||currentFileName(),b.text,'text/html');alert('Die vorige Version wurde heruntergeladen. Bitte die Kassenbuch-Datei damit ersetzen.');return;}
-      h.requestPermission({mode:'readwrite'}).then(function(p){if(p!=='granted')throw new Error('Keine Erlaubnis.');return h.createWritable();})
-       .then(function(w){return w.write(b.text).then(function(){return w.close();});})
-       .then(function(){alert('Version '+b.version+' wiederhergestellt. Das Kassenbuch wird neu geladen.');location.reload();},function(e){alert('Nicht möglich: '+(e&&e.message?e.message:e));});
+  // Erlaubnis sofort im Klick anfragen, Sicherung danach holen
+  var perm=(UPD.handle&&window.showSaveFilePicker)?UPD.handle.requestPermission({mode:'readwrite'}):Promise.resolve(null);
+  perm.then(function(p){
+    idbGet('kv','appbackup',function(b){
+      if(!b){alert('Es ist keine vorige Version gespeichert.');return;}
+      if(!confirm('Vorige Version '+b.version+' wiederherstellen?\nDie Kassenbuch-Datei wird ersetzt und neu geladen. Deine Daten bleiben erhalten.'))return;
+      if(p!=='granted'){saveFile(b.name||currentFileName(),b.text,'text/html');alert('Die vorige Version wurde heruntergeladen. Bitte die Kassenbuch-Datei damit ersetzen.');return;}
+      UPD.handle.createWritable().then(function(w){return w.write(b.text).then(function(){return w.close();});})
+        .then(function(){alert('Version '+b.version+' wiederhergestellt. Das Kassenbuch wird neu geladen.');location.reload();},function(e){alert('Nicht möglich: '+(e&&e.message?e.message:e));});
     });
-  });
+  },function(e){alert('Nicht möglich: '+(e&&e.message?e.message:e));});
 }
 function updPanelHtml(){
   var u=updUrl(),st;
@@ -1817,7 +1853,7 @@ function updPanelHtml(){
   return '<div class="psec"><h4>Updates</h4><p>Installierte Version: <b>'+esc(APP_VERSION)+'</b></p><p>'+st+'</p>'+
     '<p class="sm">Update-Adresse (Ordner mit update.json):</p><p><input id="pUpdUrl" type="text" value="'+esc(u)+'" placeholder="https://…/kassenbuch/" style="width:62%;padding:6px 8px;border:1px solid #d9c3cf;border-radius:6px;font:12px Consolas,monospace;color:#6f1240"> '+
     '<button class="btn alt" id="pUpdSave">Speichern</button> <button class="btn alt" id="pUpdCheck">Jetzt prüfen</button></p>'+
-    '<p class="sm">Die App prüft beim Start automatisch (höchstens alle 6 Stunden). Beim Aktualisieren wird nur die Programmdatei ersetzt – die Daten bleiben erhalten. <a href="#" id="pUpdBack" class="lnk">Vorige Version wiederherstellen</a></p></div>';
+    '<p class="sm">Die App prüft bei jedem Öffnen automatisch. Beim Aktualisieren wird nur die Programmdatei ersetzt – die Daten bleiben erhalten. <a href="#" id="pUpdBack" class="lnk">Vorige Version wiederherstellen</a></p></div>';
 }
 function updPanelBind(){
   if(!$('pUpdSave'))return;
@@ -1918,8 +1954,8 @@ $('fDb').onchange=function(){
   var rd=new FileReader();rd.onload=function(){loadDbBytes(new Uint8Array(rd.result),f.name,true);};rd.readAsArrayBuffer(f);
 };
 $('main').innerHTML='<p style="padding:30px;color:#9a7486">Datenbank wird geöffnet …</p>';
-boot(function(){fromHash();fsInit();setTimeout(autoCheckUpdate,3000);setInterval(autoCheckUpdate,3600*1000);});
-window.KB_DEBUG={calc:calcMonth,state:function(){return S;},keys:keys,
+boot(function(){fromHash();fsInit();autoCheckUpdate();setInterval(autoCheckUpdate,3600*1000);});
+window.KB_DEBUG={fsTest:function(h){FS.dir=h;FS.perm='prompt';FS.armed=false;armAutoResume();},fsState:function(){return {perm:FS.perm,last:FS.last,err:FS.err,bar:!!$('fsBar')};},calc:calcMonth,state:function(){return S;},keys:keys,
   db:{query:function(sql){flushNow();return sqlQuery(sql);},ready:function(){return DB_READY;},flush:flushNow,load:loadDbBytes,
       bytes:function(){flushNow();return DB.export();},snapKeys:function(cb){idbKeys('snaps',cb);},writeNow:writeNow}};
 })();
