@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kassenbuch Updates – Drucker Tankwart</title>
+<style>body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#fbf4f7;color:#6f1240}main{max-width:640px;margin:40px auto;padding:24px;background:#fff;border-top:5px solid #921a52;border-radius:12px}
+h1{color:#921a52;font-size:22px;margin:0 0 6px}a{color:#921a52;font-weight:700}li{margin:8px 0}.sm{color:#9a7486;font-size:13px}</style></head>
+<body><main><h1>Kassenbuch Drucker Tankwart – Updates</h1>
+<p>Aktuelle Version: <b id="v">…</b> <span id="n" class="sm"></span></p>
+<ul><li><a href="Kassenbuch_WebApp_Schwabach.html" download>Kassenbuch Schwabach herunterladen</a></li>
+<li><a href="Kassenbuch_WebApp_Nuernberg.html" download>Kassenbuch Nürnberg herunterladen</a></li></ul>
+<p class="sm">Die Kassenbuch-Apps prüfen diese Adresse automatisch auf neue Versionen. Die Programmdateien enthalten keine Geschäftsdaten.</p></main>
+<script>fetch('update.json?t='+Date.now()).then(function(r){return r.json();}).then(function(m){document.getElementById('v').textContent=m.version;if(m.neu)document.getElementById('n').textContent='– '+m.neu;}).catch(function(){document.getElementById('v').textContent='unbekannt';});</script>
+</body></html>
