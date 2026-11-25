@@ -1361,6 +1361,7 @@ function boot(done){
         else{DB=openDb();S=JSON.parse(JSON.stringify(window.KB_INITIAL));msg='Neue SQLite-Datenbank angelegt.';}
       }catch(e){DB=openDb();S=legacy||JSON.parse(JSON.stringify(window.KB_INITIAL));msg='Datenbank neu aufgebaut.';}
       if(!S.cats)S.cats=[];
+      BOOT_NEU=/Neue SQLite-Datenbank|übernommen/.test(msg);
       var nk=xlsKommentare();if(nk)msg=(msg?msg+' ':'')+nk+' Kommentare aus der Excel-Datei ergänzt.';
       DB_READY=true;
       if(msg){syncPending=true;commitDb();}
@@ -1389,9 +1390,31 @@ function sqlQuery(sql){ // für eigene Auswertungen (Bedienfeld)
 }
 
 // ---------- Ordner-Sicherung ----------
-function fsOk(){return !!window.showDirectoryPicker;}
+// ---------- Native Windows-Anwendung (.exe mit WebView2) ----------
+var NATIVE=!!(window.KB_NATIVE&&window.chrome&&window.chrome.webview);
+var NAT={last:null,err:''},BOOT_NEU=false;
+function fsOk(){return !NATIVE&&!!window.showDirectoryPicker;}
+function b64(u8){var s='',i,C=0x8000;for(i=0;i<u8.length;i+=C)s+=String.fromCharCode.apply(null,u8.subarray(i,i+C));return btoa(s);}
+function nativePost(o){try{window.chrome.webview.postMessage(o);}catch(e){}}
+if(NATIVE)window.chrome.webview.addEventListener('message',function(ev){
+  var m=ev.data||{};
+  if(m.typ==='db-ok'){NAT.last=new Date();NAT.err='';updStatus();}
+  else if(m.typ==='update-ok')toast('Update auf Version '+m.version+' installiert – das Kassenbuch wird neu geladen …');
+  else if(m.typ==='restore-ok')toast('Version '+m.version+' wiederhergestellt – das Kassenbuch wird neu geladen …');
+  else if(/-fehler$/.test(m.typ||'')){NAT.err=m.text;updStatus();alert('Fehler: '+m.text);}
+});
+// Beim Start: liegt im Programmordner eine neuere Datenbank-Datei (z. B. von einem anderen Rechner)? Dann übernehmen.
+function nativeSync(){
+  fetch(SHOP.datei+'.sqlite?t='+new Date().getTime(),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();}).then(function(b){
+    var bytes=new Uint8Array(b),ts=0;
+    try{var tmp=openDb(bytes),x=tmp.exec("SELECT wert FROM info WHERE schluessel='gespeichert_ms'");if(x.length)ts=+x[0].values[0][0]||0;tmp.close();}catch(e){ts=-1;}
+    if(ts>0&&(BOOT_NEU||ts>(S._ts||0)+1000)){replaceDb(bytes,SHOP.datei+'.sqlite');toast('Datenbank-Datei '+SHOP.datei+'.sqlite aus dem Programmordner geladen.');}
+    else writeNow(false);
+  },function(){writeNow(false);});
+}
 function fsInit(){
   snapshot();
+  if(NATIVE){updStatus();nativeSync();return;}
   if(!fsOk()){updStatus();return;}
   idbGet('kv','dir',function(h){
     if(!h){updStatus();return;}
@@ -1471,6 +1494,7 @@ function snapshot(){
 }
 function writeNow(manual){
   flushNow();snapshot();
+  if(NATIVE){if(!DB_READY)return;nativePost({typ:'db',datei:SHOP.datei,b64:b64(DB.export())});if(manual)toast('Gespeichert: '+SHOP.datei+'.sqlite im Programmordner.');return;}
   if(!FS.dir||FS.perm!=='granted'){updStatus();if(manual&&FS.dir)fsResume();return;}
   if(FS.busy){autoSave();return;}
   FS.busy=true;
@@ -1508,6 +1532,7 @@ function updStatus(){
   var dot=$('dbDot');if(!dot)return;
   var c='off',t='SQLite-Datenbank im Browser gespeichert (kein Ordner gewählt)';
   if(!DB_READY){c='warn';t='Datenbank nicht verfügbar – Daten nur im Browser';}
+  else if(NATIVE){c=NAT.err?'warn':'on';t=NAT.err?NAT.err:('Datenbank-Datei '+SHOP.datei+'.sqlite im Programmordner'+(NAT.last?' – zuletzt gespeichert '+hhmm(NAT.last)+' Uhr':''));}
   else if(FS.dir&&FS.perm==='granted'){c=FS.err?'warn':'on';t=FS.err?FS.err:('SQLite-Datenbank im Ordner „'+FS.dir.name+'“'+(FS.last?' – zuletzt gespeichert '+hhmm(FS.last)+' Uhr':''));}
   else if(FS.dir){c='warn';t='Speichern im Ordner pausiert – hier klicken und „Fortsetzen“ wählen';}
   dot.className='dot '+c;$('bDb').title=t;
@@ -1520,9 +1545,10 @@ function renderPanel(){
   var st,h,info='';
   if(DB_READY){
     var c1=q('SELECT (SELECT count(*) FROM monate),(SELECT count(*) FROM buchungen),(SELECT count(*) FROM notizen)')[0];
-    info='<p>Die Daten liegen in einer <b>SQLite-Datenbank</b>: '+c1[0]+' Monate, '+c1[1]+' Buchungen, '+c1[2]+' Notizen. Sie wird im Browser gespeichert'+(FS.dir&&FS.perm==='granted'?' und zusätzlich als Datei im Ordner.':'.')+'</p>';
+    info='<p>Die Daten liegen in einer <b>SQLite-Datenbank</b>: '+c1[0]+' Monate, '+c1[1]+' Buchungen, '+c1[2]+' Notizen. Sie wird im Browser gespeichert'+(NATIVE?' und automatisch als Datei im Programmordner.':(FS.dir&&FS.perm==='granted'?' und zusätzlich als Datei im Ordner.':'.'))+'</p>';
   }else info='<p class="neg">Die Datenbank ist in diesem Browser nicht verfügbar – die Daten werden nur im Browser gespeichert.</p>';
-  if(!fsOk())st='<span class="pill warn">Nicht verfügbar</span> Dieser Browser kann nicht selbst in einen Ordner speichern (nur Chrome und Edge). Die Datenbank im Browser und die Tagessicherungen laufen trotzdem.';
+  if(NATIVE)st='<span class="pill on">Automatisch</span> Das Programm speichert die Datenbank bei jeder Änderung als <b>'+SHOP.datei+'.sqlite</b> im Programmordner, dazu eine Sicherung pro Tag im Unterordner „Sicherungen“'+(NAT.last?' · zuletzt '+hhmm(NAT.last)+' Uhr':'')+'. <button class="btn alt" id="pOrdner">Programmordner öffnen</button>';
+  else if(!fsOk())st='<span class="pill warn">Nicht verfügbar</span> Dieser Browser kann nicht selbst in einen Ordner speichern (nur Chrome und Edge). Die Datenbank im Browser und die Tagessicherungen laufen trotzdem.';
   else if(!FS.dir)st='<span class="pill off">Kein Ordner gewählt</span> Wähle einmal einen Ordner (z. B. USB-Stick, Netzlaufwerk oder OneDrive). Danach liegt die Datenbank dort als Datei und wird bei jeder Änderung gespeichert.';
   else if(FS.perm!=='granted')st='<span class="pill warn">Pausiert</span> Ordner „'+esc(FS.dir.name)+'“ – der Browser möchte die Erlaubnis bestätigt haben. <button class="btn green" id="pResume">Fortsetzen</button>';
   else st='<span class="pill on">Aktiv</span> Ordner „<b>'+esc(FS.dir.name)+'</b>“'+(FS.last?' · zuletzt gespeichert '+hhmm(FS.last)+' Uhr':' · wird gleich gespeichert')+(FS.err?'<br><span class="neg">'+esc(FS.err)+'</span>':'');
@@ -1540,6 +1566,7 @@ function renderPanel(){
     '<div class="mbtn"><button class="btn green" id="pClose">Schließen</button></div></div>';
   ov.innerHTML=h;
   if($('pResume'))$('pResume').onclick=fsResume;
+  if($('pOrdner'))$('pOrdner').onclick=function(){nativePost({typ:'ordner'});};
   if($('pPick'))$('pPick').onclick=fsPick;
   if($('pNow'))$('pNow').onclick=function(){writeNow(true);};
   if($('pForget'))$('pForget').onclick=fsForget;
@@ -1728,7 +1755,7 @@ function doExport(o){
 // Die App prüft bei jedem Öffnen und zeigt einen Hinweis. Beim Aktualisieren wird die Kassenbuch-Datei
 // selbst ersetzt (Chrome/Edge: einmal die Datei auswählen, danach automatisch); die alte Version wird vorher gesichert.
 // Die Daten bleiben unberührt – sie liegen in der Datenbank, nicht in der HTML-Datei.
-var APP_VERSION='2026.11.25';
+var APP_VERSION='2026.11.27';
 var UPDATE_URL_STANDARD='https://christiank303.github.io/kassenbuch-updates/';          // feste Standard-Adresse (kann im Bedienfeld überschrieben werden)
 var UPD={m:null,base:'',err:'',checked:0,busy:false};
 function updUrl(){var u='';try{u=localStorage.getItem('kassenbuch.update.url')||'';}catch(e){}return u||UPDATE_URL_STANDARD;}
@@ -1766,7 +1793,7 @@ function autoCheckUpdate(){checkUpdate(false);}   // bei jedem Öffnen sofort pr
 function showUpdBanner(m){
   var b=$('updBar');
   if(!b){b=document.createElement('div');b.id='updBar';document.body.insertBefore(b,document.body.firstChild);}
-  var first=window.showSaveFilePicker&&!UPD.handle;
+  var first=!NATIVE&&window.showSaveFilePicker&&!UPD.handle;
   b.innerHTML='<b>Neue Version '+esc(m.version)+' verfügbar</b> (installiert: '+esc(APP_VERSION)+')'+(m.neu?' – '+esc(m.neu):'')+
     ' <button class="btn green" id="updGo">Jetzt aktualisieren</button> <button class="btn alt" id="updLater">Später</button>'+
     (first?'<br><span style="font-size:12px">Beim ersten Mal öffnet sich ein Fenster: dort die gerade geöffnete Datei „<b>'+esc(currentFileName())+'</b>“ auswählen und „Ersetzen“ bestätigen.</span>':'');
@@ -1780,15 +1807,32 @@ function sha256hex(buf){
 function currentFileName(){try{return decodeURIComponent(location.pathname.split('/').pop())||'Kassenbuch.html';}catch(e){return 'Kassenbuch.html';}}
 // Gespeicherten Datei-Zugriff schon beim Start bereithalten – Chrome erlaubt Auswahlfenster und Erlaubnis-Abfrage
 // nur unmittelbar nach einem Klick, deshalb muss das ohne Wartezeit passieren.
-idbGet('kv','appfile',function(h){if(h)UPD.handle=h;});
+idbGet('kv','appfile',function(h){
+  if(!h)return;UPD.handle=h;
+  try{h.queryPermission({mode:'read'}).then(function(p){if(p==='granted')appFileCheck(h);},function(){});}catch(e){}
+});
+// Ist die gemerkte Update-Datei wirklich die gerade geöffnete? (gleiche Version und gleicher Shop)
+// Sonst war es eine andere Kopie (z. B. im Download-Ordner) – dann vergessen und beim nächsten Update neu auswählen.
+function fileVer(t){var m=/var APP_VERSION='([^']*)'/.exec(t||'');return m?m[1]:'';}
+function appFileCheck(h){
+  return h.getFile().then(function(f){return f.text();}).then(function(t){
+    var sm=/var SHOP=\{[^}]*\}/.exec(t||''),same=fileVer(t)===APP_VERSION&&sm&&new RegExp('["\']?id["\']?\\s*:\\s*["\']'+SHOP.id+'["\']').test(sm[0]);
+    if(!same){UPD.handle=null;idbDel('kv','appfile');}
+    return !!same;
+  },function(){return true;});
+}
 // Zugriff auf die Programmdatei holen – MUSS direkt im Klick aufgerufen werden (vor jedem Laden/Warten)
 function pickAppFile(){
-  if(!window.showSaveFilePicker)return Promise.resolve(null);
+  if(NATIVE||!window.showSaveFilePicker)return Promise.resolve(null);
   var name=currentFileName();
   if(UPD.handle){
     return UPD.handle.requestPermission({mode:'readwrite'}).then(function(p){
       if(p!=='granted')throw new Error('Keine Erlaubnis, die Kassenbuch-Datei zu ersetzen.');
-      return UPD.handle;
+      var h=UPD.handle;
+      return appFileCheck(h).then(function(ok){
+        if(!ok)throw new Error('Die gemerkte Kassenbuch-Datei ist eine andere Kopie als die gerade geöffnete.\nBitte noch einmal auf „Jetzt aktualisieren“ klicken und im Fenster die geöffnete Datei „'+name+'“ auswählen.');
+        return h;
+      });
     });
   }
   return window.showSaveFilePicker({suggestedName:name,id:'kassenbuch-app-'+SHOP.id,types:[{description:'Kassenbuch (HTML)',accept:{'text/html':['.html','.htm']}}]}).then(function(h){
@@ -1821,6 +1865,7 @@ function doUpdate(m){
 function installUpdate(handle,text,m){
   flushNow();snapshot();
   var name=currentFileName();
+  if(NATIVE){nativePost({typ:'update',text:text,version:m.version});return Promise.resolve();}
   if(!handle){
     saveFile(name,text,'text/html');
     alert('Die neue Version '+m.version+' wurde heruntergeladen („'+name+'“, Download-Ordner).\n\nBitte die alte Kassenbuch-Datei durch diese ersetzen und dann neu öffnen. Deine Daten bleiben erhalten.');
@@ -1835,6 +1880,7 @@ function installUpdate(handle,text,m){
   });
 }
 function restorePrevVersion(){
+  if(NATIVE){if(confirm('Vorige Version wiederherstellen?\nDas Kassenbuch lädt danach neu. Deine Daten bleiben erhalten.'))nativePost({typ:'restore'});return;}
   // Erlaubnis sofort im Klick anfragen, Sicherung danach holen
   var perm=(UPD.handle&&window.showSaveFilePicker)?UPD.handle.requestPermission({mode:'readwrite'}):Promise.resolve(null);
   perm.then(function(p){
@@ -1959,7 +2005,7 @@ $('fDb').onchange=function(){
 };
 $('main').innerHTML='<p style="padding:30px;color:#9a7486">Datenbank wird geöffnet …</p>';
 boot(function(){fromHash();fsInit();autoCheckUpdate();setInterval(autoCheckUpdate,3600*1000);});
-window.KB_DEBUG={fsTest:function(h){FS.dir=h;FS.perm='prompt';FS.armed=false;armAutoResume();},fsState:function(){return {perm:FS.perm,last:FS.last,err:FS.err,bar:!!$('fsBar')};},calc:calcMonth,state:function(){return S;},keys:keys,
+window.KB_DEBUG={updCheck:function(h){UPD.handle=h;return appFileCheck(h).then(function(ok){return {ok:ok,handleBehalten:!!UPD.handle};});},fsTest:function(h){FS.dir=h;FS.perm='prompt';FS.armed=false;armAutoResume();},fsState:function(){return {perm:FS.perm,last:FS.last,err:FS.err,bar:!!$('fsBar')};},calc:calcMonth,state:function(){return S;},keys:keys,
   db:{query:function(sql){flushNow();return sqlQuery(sql);},ready:function(){return DB_READY;},flush:flushNow,load:loadDbBytes,
       bytes:function(){flushNow();return DB.export();},snapKeys:function(cb){idbKeys('snaps',cb);},writeNow:writeNow}};
 })();

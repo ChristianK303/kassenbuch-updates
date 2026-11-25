@@ -1,12 +1,12 @@
 {
- "version": "2026.11.25",
- "neu": "Knöpfe oben im Monatsblatt, Kontrolle neben Kassenstand Ende",
+ "version": "2026.11.27",
+ "neu": "Unterstützung für die Windows-Programme (Kassenbuch-Schwabach.exe / Kassenbuch-Nürnberg.exe)",
  "dateien": {
   "schwabach": "Kassenbuch_WebApp_Schwabach.html",
   "nuernberg": "Kassenbuch_WebApp_Nuernberg.html"
  },
  "sha256": {
-  "schwabach": "31de74f5990439432a0ea81d569b77f9cfb217396818e5cc947244271712dbfb",
-  "nuernberg": "8828cd32f28986d7521a3ae91573a3606c7ae67cbfa412c6f7f961c4f94053a1"
+  "schwabach": "f97bb94ae60e9f2bd1988c3181f7acc9eb90ca442400d98db1091252bd1daf01",
+  "nuernberg": "2b4f38073be30d9e8e42d7644690a8334e0a37d3b0a1ef53a399416bbb854379"
  }
 }
