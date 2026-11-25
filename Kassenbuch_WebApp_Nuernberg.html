@@ -100,6 +100,14 @@ body{font-family:Montserrat,"Segoe UI",Calibri,Arial,sans-serif;font-size:13px;c
 #entov .btn.sm2{padding:4px 10px;font-size:11px}
 #entov .bad{color:#c62828;font-weight:600}
 #entov .neg{color:#c62828}
+#entov .ezw{display:flex;flex-wrap:wrap;gap:0 14px}
+#entov .ezw table{flex:1;min-width:220px}
+#entov input.zn{width:74px;text-align:right}
+#entov .ezs{min-width:78px}
+#entov .ezr{margin-top:10px;padding:8px 12px;border:1px solid #eadde3;border-radius:8px}
+#entov .ezr label{display:block;margin-top:6px;cursor:pointer}
+#entov .ezr input[type=checkbox]{width:auto;padding:0;margin-right:6px;vertical-align:middle}
+#entov .ok{color:#2e7d32;font-weight:600}
 table.kb tr.flash td,table.kb tr.flash td input{background:#fff3b0 !important}
 table.kb input.note::placeholder{color:#b0507c;font-weight:700;opacity:1}
 table.kb input.note:-ms-input-placeholder{color:#b0507c;font-weight:700}
@@ -598,7 +606,7 @@ function renderStart(){
   h+='</tbody><tfoot><tr><td>Σ</td><td></td><td></td><td>'+fmt(tu,true)+'</td><td>'+fmt(tk,true)+'</td><td>'+tkn+'</td><td>'+fmt(tkn?tk/tkn:0,true)+'</td><td>'+fmt(tc,true)+'</td><td>'+fmt(tch,true)+'</td><td>'+fmt(ts,true)+'</td><td></td></tr></tfoot></table>';
   h+='<div style="margin-top:14px"><canvas id="cv" width="900" height="300"></canvas></div>';
   h+='<div class="hint">Firmenname: <input type="text" id="firmIn" value="'+esc(S.firma||'')+'" style="width:320px;padding:4px"> &nbsp; <button class="btn alt" id="bCsvAll">Übersicht als CSV (Excel)</button></div>';
-  h+='<div class="help"><img src="'+document.querySelector('#brand img').src+'" alt=""><b>So funktioniert’s</b><br>1. Am einfachsten: oben auf <b>„+ Neuer Eintrag“</b> – das Programm fragt Datum, Umsätze, Kunden und Kasse nacheinander ab und legt den Tag an. Oder einen Monat anklicken und die Tageswerte direkt in die weißen Felder eintragen – graue Spalten rechnen automatisch.<br>'+
+  h+='<div class="help"><img src="'+document.querySelector('#brand img').src+'" alt=""><b>So funktioniert’s</b><br>1. Am einfachsten: oben auf <b>„+ Neuer Eintrag“</b> – das Programm fragt Datum, Umsätze, Kunden und Kasse nacheinander ab, zählt auf Wunsch das Bargeld in der Kasse und legt den Tag an. Oder einen Monat anklicken und die Tageswerte direkt in die weißen Felder eintragen – graue Spalten rechnen automatisch.<br>'+
      '2. Monat voll? Oben auf „+ Neuer Monat“ – das nächste Blatt entsteht samt Kassenübertrag. „+ Neues Jahr“ legt alle 12 Monate eines Jahres auf einmal an.<br>'+
      '2a. Alte Stände übernehmen: „Import …“ liest eine Sicherung (.json) oder ein Kassenbuch aus Excel/LibreOffice (.xlsx, .xlsm, .ods) ein – vorhandene Monate bleiben erhalten oder werden auf Wunsch überschrieben.<br>3. Neue Umsatzart? „+ Neue Kategorie“ fügt in allen Monaten eine Spalte ein.<br>'+
      '4. Auszahlungen (Entnahme, Kartenzahlung, Reklamation, Rabatt) als <b>negativen</b> Betrag eintragen.<br>'+
@@ -679,7 +687,7 @@ function renderMonth(k){
         var raw=v[c.id],txt=(raw===undefined||raw===''||raw===null)?'':(c.k==='cnt'?String(num(raw)):fmt(num(raw),true));
         var cmt=cmOf(m,d,c.id);
         h+='<td'+(cmt?' class="hascm"':'')+'><input type="text" inputmode="decimal" class="'+(c.k==='cnt'?'cnt':'')+(num(raw)<0?' neg':'')+'" data-d="'+d+'" data-c="'+c.id+'" value="'+txt+'" autocomplete="off"'+(cmt?' title="'+esc(cmt)+'"':'')+'></td>';
-      }else h+='<td class="'+(c.k==='calcb'?'cb':c.k==='stand'?'st':'c')+'" id="c'+d+'_'+c.id+'"></td>';
+      }else{var cms=c.k==='stand'?cmOf(m,d,c.id):'';h+='<td class="'+(c.k==='calcb'?'cb':c.k==='stand'?'st':'c')+(cms?' hascm':'')+'" id="c'+d+'_'+c.id+'"'+(cms?' title="'+esc(cms)+'"':'')+'></td>';}
     }
     h+='<td><input type="text" class="note" data-d="'+d+'" data-c="_note" value="'+esc(note)+'"'+(fte?' placeholder="Feiertag ('+esc(fte)+')" title="Gesetzlicher Feiertag in '+SHOP.ort+': '+esc(fte)+'"':'')+'></td></tr>';
   }
@@ -715,7 +723,7 @@ function refresh(k){
       c=cs[i];if(c.k==='in'||c.k==='cnt')continue;
       e=$('c'+d+'_'+c.id);if(!e)continue;
       var val=res.rows[d][c.id];
-      if(c.k==='stand'){e.textContent=fmt(val,true);e.className='st'+(val<0?' neg':'');}
+      if(c.k==='stand'){e.textContent=fmt(val,true);e.className='st'+(val<0?' neg':'')+(/\bhascm\b/.test(e.className)?' hascm':'');}
       else e.textContent=fmt(val,false);
     }
   }
@@ -822,7 +830,7 @@ function entLocked(k){return typeof isLocked==='function'&&!!S.months[k]&&isLock
 function entFields(g){var cs=cols(),a=[],i;for(i=0;i<cs.length;i++)if(cs[i].g===g&&(cs[i].k==='in'||cs[i].k==='cnt'))a.push(cs[i]);return a;}
 function entAll(){var a=[],i;for(i=0;i<ENT_GR.length;i++)a=a.concat(entFields(ENT_GR[i].g));return a;}
 function entTitle(c,k){return (c.id==='chips'&&S.months[k]&&S.months[k].hdrN)?S.months[k].hdrN:c.t;}
-function entSteps(){var a=[{t:'Datum'}],i;for(i=0;i<ENT_GR.length;i++)if(entFields(ENT_GR[i].g).length)a.push(ENT_GR[i]);a.push({t:'Notiz & Kontrolle'});return a;}
+function entSteps(){var a=[{t:'Datum'}],i;for(i=0;i<ENT_GR.length;i++)if(entFields(ENT_GR[i].g).length)a.push(ENT_GR[i]);a.push({t:'Kasse zählen',z:1});a.push({t:'Notiz & Kontrolle'});return a;}
 // letzter Tag mit einem Eintrag
 function entLast(){
   var ks=keys(),i,d,m,x,c,best;
@@ -866,10 +874,12 @@ function entBad(c,v){
   return !/^[-+]?\s*(\d{1,3}(\.\d{3})+|\d+)([.,]\d{1,2})?\s*€?$/.test(v);
 }
 // Eingaben -> gespeicherte Werte (Auszahlungs-Spalten mit Minus)
-function entVals(W){
+function entVals(W,ohne){
   var o={},fs=entAll(),i,c,t,n;
   for(i=0;i<fs.length;i++){c=fs[i];t=W.v[c.id];if(t===undefined||String(t).replace(/\s/g,'')===''||entBad(c,t))continue;
     n=num(t);if(c.neg)n=-n;if(c.k==='cnt')n=Math.round(n);o[c.id]=r2(n);}
+  if(!ohne&&W.zBuch){var z=entZ(W),zc=entZCol();
+    if(z&&zc&&Math.abs(z.diff)>=0.005){o[zc.id]=r2((o[zc.id]||0)+z.diff);if(Math.abs(o[zc.id])<0.005)delete o[zc.id];}}
   return o;
 }
 function entInfo(W){
@@ -888,14 +898,44 @@ function entInfo(W){
   return {ok:ok,h:a.join('<br>')};
 }
 // Vorschau: Tagesumsatz und Kassenstand mit den bisherigen Eingaben (ohne zu speichern)
-function entCalc(W){
+function entCalc(W,ohne){
   var k=W.k,d=W.d,had=S.months.hasOwnProperty(k),m,old,res,r=null;
   if(!had)S.months[k]={start:keys().length?null:num(W.start),hdrN:'',days:{},notes:{}};
-  m=S.months[k];old=m.days[d];m.days[d]=entVals(W);
+  m=S.months[k];old=m.days[d];m.days[d]=entVals(W,ohne);
   try{res=calcMonth(k);r={um:res.rows[d]._um,st:res.rows[d]._st,vor:d>1?res.rows[d-1]._st:res.start};}
   catch(e){r=null;}
   finally{if(old===undefined)delete m.days[d];else m.days[d]=old;if(!had)delete S.months[k];}
   return r;
+}
+// ---- Kasse zählen ----
+var ENT_Z=[500,200,100,50,20,10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01];
+function entZLab(v){return v>=1?v+' €':Math.round(v*100)+' Cent';}
+function entZBad(t){t=String(t===undefined?'':t).replace(/\s/g,'');return t!==''&&!/^\d+$/.test(t);}
+function entZHas(W){var i;for(i=0;i<ENT_Z.length;i++)if(String(W.z[i]===undefined?'':W.z[i]).replace(/\s/g,'')!==''&&!entZBad(W.z[i]))return true;return false;}
+function entZSum(W){var s=0,i;for(i=0;i<ENT_Z.length;i++)if(!entZBad(W.z[i]))s+=Math.round(ENT_Z[i]*100)*(parseInt(W.z[i],10)||0);return s/100;}
+function entZList(W){var a=[],i,n;for(i=0;i<ENT_Z.length;i++){n=entZBad(W.z[i])?0:(parseInt(W.z[i],10)||0);if(n)a.push(n+' × '+entZLab(ENT_Z[i]));}return a.join(', ');}
+// Spalte, in die eine Zähldifferenz gebucht wird
+function entZCol(){var cs=cols(),i;for(i=0;i<cs.length;i++)if(cs[i].id==='kdiff')return cs[i];for(i=0;i<cs.length;i++)if(cs[i].id==='ueber')return cs[i];return null;}
+// gezählt / laut Kassenbuch (ohne Buchung der Differenz) / Differenz
+function entZ(W){if(!W.z||!entZHas(W))return null;var r=entCalc(W,true);if(!r)return null;var ist=entZSum(W);return {ist:ist,soll:r2(r.st),diff:r2(ist-r.st)};}
+function entZText(z,W){
+  var zc=entZCol(),ok=Math.abs(z.diff)<0.005;
+  return 'Kasse gezählt: '+eur(z.ist)+' (laut Kassenbuch '+eur(z.soll)+(ok?' – stimmt':' – Differenz '+(z.diff>0?'+':'')+eur(z.diff)+
+    (W.zBuch&&zc?', als „'+zc.t+'“ gebucht':', nicht gebucht'))+'). '+entZList(W);
+}
+function entZUpd(W){
+  var e=$('eZ'),i,n,z,zc,ok,h;if(!e)return;
+  for(i=0;i<ENT_Z.length;i++){n=$('ezs'+i);if(n){var a=entZBad(W.z[i])?0:(parseInt(W.z[i],10)||0);n.textContent=a?eur(a*ENT_Z[i]):'';}}
+  z=entZ(W);
+  if(!z){e.innerHTML='<span class="sm">Noch nichts gezählt. Ohne Zählen einfach auf „Weiter“.</span>';return;}
+  zc=entZCol();ok=Math.abs(z.diff)<0.005;
+  h='Gezählt <b>'+eur(z.ist)+'</b> &nbsp;·&nbsp; laut Kassenbuch <b>'+eur(z.soll)+'</b><br>';
+  if(ok)h+='<span class="ok">✔ Die Kasse stimmt.</span>';
+  else{h+='<span class="bad">Differenz '+(z.diff>0?'+':'')+eur(z.diff)+' – '+(z.diff>0?'zu viel':'zu wenig')+' in der Kasse.</span>';
+    if(zc)h+='<label><input type="checkbox" id="eZb"'+(W.zBuch?' checked':'')+'> Differenz als „'+esc(zc.t)+'“ buchen (dann stimmt der Kassenstand mit der Zählung überein)</label>';
+    h+='<div class="sm">Bitte vorher nachzählen und prüfen, ob alle Beträge des Tages richtig eingetragen sind.</div>';}
+  e.innerHTML=h;
+  if($('eZb'))$('eZb').onchange=function(){W.zBuch=this.checked;W.dirty=true;entLive(W,null);};
 }
 function entSummary(W){
   var fs=entAll(),o=entVals(W),h='<table class="et">',n=0,i,c;
@@ -903,6 +943,7 @@ function entSummary(W){
     h+='<tr><td>'+esc(entTitle(c,W.k))+'</td><td class="r'+(o[c.id]<0?' neg':'')+'">'+(c.k==='cnt'?o[c.id]:eur(o[c.id]))+'</td></tr>';
     if(c.id==='ausgabe'&&W.beleg)h+='<tr><td class="sm">Beleg</td><td class="r sm">'+esc(W.beleg)+'</td></tr>';}
   if(!n)h+='<tr><td class="sm">Keine Beträge eingetragen.</td></tr>';
+  var z=entZ(W);if(z)h+='<tr><td>Kasse gezählt<div class="sm">'+esc(entZList(W))+'</div></td><td class="r">'+eur(z.ist)+'<div class="'+(Math.abs(z.diff)<0.005?'ok':'bad')+'">'+(Math.abs(z.diff)<0.005?'✔ stimmt':'Differenz '+(z.diff>0?'+':'')+eur(z.diff)+(W.zBuch&&entZCol()?' (gebucht)':' (nicht gebucht)'))+'</div></td></tr>';
   return h+'</table>';
 }
 function entLive(W,inf){
@@ -915,7 +956,7 @@ function entLive(W,inf){
 function entryWizard(){
   if(!S)return;
   if($('entov'))return;
-  var W={step:0,v:{},note:'',beleg:'',start:'0',dirty:false};
+  var W={step:0,v:{},note:'',beleg:'',start:'0',dirty:false,z:{},zBuch:false};
   entSetDate(W,entSuggest());
   var ov=document.createElement('div');ov.id='entov';document.body.appendChild(ov);
   entDraw(W);
@@ -939,6 +980,14 @@ function entDraw(W){
       if(c.id==='ausgabe')h+='<tr><td>Beleg zur Bar-Ausgabe<div class="sm">Belegnummer und Zweck, z. B. „B-17 Porto“</div></td><td class="r"><input type="text" class="wide" id="eBeleg" value="'+esc(W.beleg||'')+'" autocomplete="off"></td></tr>';
     }
     h+='</table>';
+  }else if(s.z){
+    h+='<p>Bargeld in der Kasse zählen und die <b>Anzahl</b> je Schein und Münze eintragen – das Programm rechnet zusammen und vergleicht mit dem Kassenstand laut Kassenbuch nach diesem Tag.</p><div class="ezw">';
+    for(i=0;i<ENT_Z.length;i++){
+      if(i===0||i===7)h+='<table class="et"><tr><td colspan="3" class="sm">'+(i?'Münzen':'Scheine')+'</td></tr>';
+      h+='<tr><td>'+entZLab(ENT_Z[i])+'</td><td class="r"><input type="text" inputmode="numeric" class="zn'+(entZBad(W.z[i])?' err':'')+'" data-z="'+i+'" value="'+esc(W.z[i]||'')+'" autocomplete="off" placeholder="Anzahl"></td><td class="r sm ezs" id="ezs'+i+'"></td></tr>';
+      if(i===6||i===ENT_Z.length-1)h+='</table>';
+    }
+    h+='</div><div class="ezr" id="eZ"></div>';
   }else{
     h+='<p>Bitte prüfen. Mit „Eintrag speichern“ wird der Tag ins Kassenbuch übernommen'+(W.exist?' (bisherige Werte dieses Tages werden ersetzt)':'')+'.</p>'+
        '<p>Notiz zum Tag (optional):<br><input type="text" class="wide" id="eNote" value="'+esc(W.note)+'" autocomplete="off"></p>'+entSummary(W);
@@ -956,10 +1005,12 @@ function entDraw(W){
     if($('eStart'))$('eStart').oninput=function(){W.start=this.value;W.dirty=true;entLive(W,inf);};
     upd0();
   }else entLive(W,null);
+  if(s.z)entZUpd(W);
   var ins=ov.getElementsByTagName('input');
   for(i=0;i<ins.length;i++){
     if(ins[i].getAttribute('data-e'))ins[i].oninput=function(){var id=this.getAttribute('data-e'),j;W.v[id]=this.value;W.dirty=true;
       for(j=0;j<fs.length;j++)if(fs[j].id===id)this.className='num'+(entBad(fs[j],this.value)?' err':'');entLive(W,null);};
+    if(ins[i].getAttribute('data-z'))ins[i].oninput=function(){W.z[this.getAttribute('data-z')]=this.value;W.dirty=true;this.className='zn'+(entZBad(this.value)?' err':'');entZUpd(W);entLive(W,null);};
     ins[i].onfocus=function(){var q=this;setTimeout(function(){try{q.select();}catch(e){}},0);};
   }
   if($('eBeleg'))$('eBeleg').oninput=function(){W.beleg=this.value;W.dirty=true;};
@@ -971,6 +1022,7 @@ function entDraw(W){
       if(!keys().length&&entBad({k:'in'},W.start)){alert('Bitte den Anfangsbestand als Betrag eingeben, z. B. 250,00.');return;}
     }
     for(var j=0;j<fs.length;j++)if(entBad(fs[j],W.v[fs[j].id])){alert('„'+entTitle(fs[j],W.k)+'“: bitte '+(fs[j].k==='cnt'?'eine ganze Zahl':'einen Betrag wie 12,50')+' eingeben.');var x=ov.querySelector('[data-e="'+fs[j].id+'"]');if(x)x.focus();return;}
+    if(s.z)for(var zi=0;zi<ENT_Z.length;zi++)if(entZBad(W.z[zi])){alert('„'+entZLab(ENT_Z[zi])+'“: bitte die Anzahl als ganze Zahl eingeben.');var zx=ov.querySelector('[data-z="'+zi+'"]');if(zx)zx.focus();return;}
     W.step++;entDraw(W);
   }
   if($('eNext'))$('eNext').onclick=next;
@@ -983,7 +1035,7 @@ function entDraw(W){
     if(ev.key!=='Enter')return;
     var t=ev.target||ev.srcElement;if(t&&t.tagName==='BUTTON')return;
     if(ev.preventDefault)ev.preventDefault();
-    var all=ov.querySelectorAll('.ebody input'),j;
+    var all=ov.querySelectorAll('.ebody input[type=text],.ebody input[type=date]'),j;
     for(j=0;j<all.length;j++)if(all[j]===t&&j<all.length-1&&t.id!=='eDt'){all[j+1].focus();return;}
     if($('eNext'))next();else if($('eOk'))entSave(W);
   };
@@ -991,7 +1043,7 @@ function entDraw(W){
 }
 function entSave(W){
   var inf=entInfo(W);if(!inf.ok){alert(inf.h.replace(/<br>/g,'\n').replace(/<[^>]+>/g,''));return;}
-  var k=W.k,d=W.d,i,neu=entNewMonths(k),log=typeof logChange==='function',m,old,o,fs,x={},c,ov,nv,on;
+  var k=W.k,d=W.d,i,neu=entNewMonths(k),log=typeof logChange==='function',m,old,o,fs,x={},c,ov,nv,on,zz=entZ(W);
   for(i=0;i<neu.length;i++)if(!S.months[neu[i]])S.months[neu[i]]={start:keys().length?null:num(W.start),hdrN:'',days:{},notes:{}};
   m=S.months[k];old=m.days[d]||{};o=entVals(W);fs=entAll();
   for(c in old)if(old.hasOwnProperty(c))x[c]=old[c];
@@ -1005,10 +1057,11 @@ function entSave(W){
   if(W.note)m.notes[d]=W.note;else delete m.notes[d];
   if(on!==W.note&&log)logChange(on===''?'Eingabe':(W.note===''?'Löschung':'Änderung'),k,d,'_note',on,W.note,'Neuer Eintrag (geführt)');
   if(o.ausgabe!==undefined&&W.beleg&&W.beleg!==cmOf(m,d,'ausgabe')){setCm(m,d,'ausgabe',W.beleg);if(log)logChange('Beleg',k,d,'ausgabe','',W.beleg,'Beleg zur Bar-Ausgabe');}
+  if(zz){var zt=entZText(zz,W),zo=cmOf(m,d,'_st');if(zt!==zo){setCm(m,d,'_st',zt);if(log)logChange('Kassenzählung',k,d,'_st',zo,zt,'Kasse gezählt (geführter Eintrag)');}}
   save();entClose();go(k);
   setTimeout(function(){var r=$('r'+d);if(!r)return;r.className+=' flash';try{r.scrollIntoView({block:'center',inline:'nearest'});}catch(e){}
     setTimeout(function(){r.className=r.className.replace(' flash','');},2600);},60);
-  toast('Eintrag für '+entDe(W.dt)+' gespeichert.');
+  toast('Eintrag für '+entDe(W.dt)+' gespeichert.'+(!zz?'':Math.abs(zz.diff)<0.005?' Die Kasse stimmt.':' Kassendifferenz '+(zz.diff>0?'+':'')+eur(zz.diff)+(W.zBuch?' gebucht.':' (nicht gebucht).')));
 }
 function pickMonth(){
   var t=new Date(),s=prompt('Welcher Monat soll angelegt werden?\nEingabe als MM.JJJJ, z. B. 03.2027',(t.getMonth()<9?'0':'')+(t.getMonth()+1)+'.'+t.getFullYear());
@@ -1240,7 +1293,7 @@ function bestGuess(n){
   }
   return bs>=0.7?best:null;
 }
-function colTitle(id){var cs=inputCols(),i;for(i=0;i<cs.length;i++)if(cs[i].id===id)return cs[i].t;return id;}
+function colTitle(id){var cs=inputCols(),i;for(i=0;i<cs.length;i++)if(cs[i].id===id)return cs[i].t;cs=cols();for(i=0;i<cs.length;i++)if(cs[i].id===id)return cs[i].t.replace('-','');return id;}
 function parseBook(wb,done){
   var X=window.XLSX,hm=S.hdrMap||{},infos=[],unk={},ulist=[],si,i,c,r,n;
   var KN={jan:1,feb:2,mrz:3,mär:3,mar:3,apr:4,mai:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dez:12};
@@ -2000,7 +2053,7 @@ function doExport(o){
 // Die App prüft bei jedem Öffnen und zeigt einen Hinweis. Beim Aktualisieren wird die Kassenbuch-Datei
 // selbst ersetzt (Chrome/Edge: einmal die Datei auswählen, danach automatisch); die alte Version wird vorher gesichert.
 // Die Daten bleiben unberührt – sie liegen in der Datenbank, nicht in der HTML-Datei.
-var APP_VERSION='2026.11.28';
+var APP_VERSION='2026.11.29';
 var UPDATE_URL_STANDARD='https://christiank303.github.io/kassenbuch-updates/';          // feste Standard-Adresse (kann im Bedienfeld überschrieben werden)
 var UPD={m:null,base:'',err:'',checked:0,busy:false};
 function updUrl(){var u='';try{u=localStorage.getItem('kassenbuch.update.url')||'';}catch(e){}return u||UPDATE_URL_STANDARD;}

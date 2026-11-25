@@ -1,12 +1,12 @@
 {
- "version": "2026.11.28",
- "neu": "Neuer Knopf ",
+ "version": "2026.11.29",
+ "neu": "Neuer Schritt „Kasse zählen“ beim geführten Eintrag: Scheine und Münzen zählen, Vergleich mit dem Kassenstand, Differenz auf Wunsch buchen.",
  "dateien": {
   "schwabach": "Kassenbuch_WebApp_Schwabach.html",
   "nuernberg": "Kassenbuch_WebApp_Nuernberg.html"
  },
  "sha256": {
-  "schwabach": "44b9f22d928a67fe1071bc71e28c8a67b6c4398b9aefa8404029fa161ca1a6c2",
-  "nuernberg": "a1d1eb84f2b11d64317a36a40a690f58e8b01086df8c45f0197099015a7c0c16"
+  "schwabach": "775d8cefc9435a88e84a8962826a6dc0b22751a410329b58f3cbcef0093b24ab",
+  "nuernberg": "483001c4ccc312e108285b8a3bdf47d2e02604cc778fff315571f256cf2ef033"
  }
 }
